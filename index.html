@@ -838,10 +838,11 @@
 
       if(weddingData.music.enabled){
         musicToggle.classList.add('is-active');
-        bgMusic.src = weddingData.music.source && weddingData.music.source.indexOf('[') !== 0
+        const src = weddingData.music.source && weddingData.music.source.indexOf('[') !== 0
           ? weddingData.music.source
           : '';
-        if(bgMusic.src){
+        if(src){
+          if(!bgMusic.src) bgMusic.src = src;
           bgMusic.volume = 0.32;
           bgMusic.play().catch(()=>{ /* autoplay may still be blocked; user can use the toggle */ });
           musicToggle.setAttribute('aria-pressed','true');
@@ -871,6 +872,22 @@
       giftVideo.addEventListener('error', proceedToNextSection, { once:true });
       // Safety net in case 'ended' never fires (e.g. unsupported format).
       setTimeout(proceedToNextSection, 8000);
+
+      // iOS Safari only allows audio.play() when it's called synchronously
+      // inside a real tap/click handler — a few seconds later (once the
+      // gift video finishes) is too late and gets silently blocked. So we
+      // "unlock" the audio element right here, in the same tap, then play
+      // it for real once we reach page 2 in proceedToNextSection().
+      if(weddingData.music.enabled){
+        const src = weddingData.music.source && weddingData.music.source.indexOf('[') !== 0
+          ? weddingData.music.source
+          : '';
+        if(src && !bgMusic.src){
+          bgMusic.src = src;
+          bgMusic.volume = 0.32;
+          bgMusic.play().then(() => bgMusic.pause()).catch(() => { /* will retry on page 2 */ });
+        }
+      }
     }, { once:true });
 
     // Scrolling itself is never blocked (see boot), but if someone scrolls past
